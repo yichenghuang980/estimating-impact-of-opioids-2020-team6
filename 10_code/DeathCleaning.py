@@ -50,7 +50,7 @@ final = pd.merge(finalDose, totalDeath, on = ['County', 'County Code', 'Year'])
 final['OverdoseProp'] = final['TotalOverdose'] / final['TotalDeath']
 final[['County','State']] = final.County.str.split(", ",expand=True,)
 final['PolicyState'] = (final['State'] == 'FL') | ((final['State'] == 'TX')) | (final['State'] == 'WA')
-final['Post'] = ((final['State'] == 'FL') & (final['Year'] > 2010)) | ((final['State'] == 'TX') & (final['Year'] > 2007)) | ((final['State'] == 'WA') & (final['Year'] > 2012))
+final['Post'] = ((final['State'] == 'FL') & (final['Year'] >= 2010)) | ((final['State'] == 'TX') & (final['Year'] >= 2007)) | ((final['State'] == 'WA') & (final['Year'] >= 2012))
 final
 
 final.to_csv('death.csv', index = False)
