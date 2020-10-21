@@ -32,5 +32,7 @@ WA1=WA.drop(axis=1,columns=drop)
 #Group By State, County, and Year
 WA_agg=WA1.groupby(['BUYER_STATE','BUYER_COUNTY','YEAR/MONTH'],as_index=False).sum()
 WA_agg.head()
+#Concatenate the dataframes into one
+SHIPMENT_agg = pd.concat([FL_agg, TX_agg, WA_agg], axis=0)
 #Convert to CSV
 SHIPMENT_agg.to_csv(r'/Users/Dean Huang/Documents/Duke University (MIDS 2022)/Fall 2020/IDS 720/Team Project/SHIPMENT_agg.csv',index=False, header=True)
