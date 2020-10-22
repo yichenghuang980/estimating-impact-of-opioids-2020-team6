@@ -120,7 +120,7 @@ pop_00_19 = pop_00_19.groupby(["STNAME", "CTYNAME", "YEAR"]).sum().reset_index()
 assert not pop_00_19.duplicated().any()
 
 # Rename columns
-pop_00_19.rename(columns={"STNAME": "STATE", "CTYNAME":"COUNTY"}, inplace=True)
+pop_00_19.rename(columns={"STNAME": "STATE", "CTYNAME": "COUNTY"}, inplace=True)
 
 # Export as csv to intermediate files folder
 pop_00_19.to_csv("../20_intermediate_files/FinalPopDataset.csv", index=False)
