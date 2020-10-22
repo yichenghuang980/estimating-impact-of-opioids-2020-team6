@@ -52,7 +52,10 @@ state = final.groupby(['State', 'Year'], as_index = False).sum().drop('County Co
 state['OverdoseProp'] = state['TotalOverdose'] / state['TotalDeath']
 
 state['PolicyState'] = (state['State'] == 'FL') | ((state['State'] == 'TX')) | (state['State'] == 'WA')
-state['Post'] = ((state['State'] == 'FL') & (state['Year'] >= 2010)) | ((state['State'] == 'TX') & (state['Year'] >= 2007)) | ((state['State'] == 'WA') & (state['Year'] >= 2012))
-state
 
+nearFL = ['FL', 'LA', 'MS', 'SC']
+nearTX = ['TX', 'AR', 'NM', 'KS']
+nearWA = ['WA', 'CO', 'OR', 'CA']
+
+state['Post'] = ((state['State'].isin(nearFL)) & (state['Year'] >= 2010)) | ((state['State'].isin(nearTX)) & (state['Year'] >= 2007)) | ((state['State'].isin(nearWA)) & (state['Year'] >= 2012))
 state.to_csv('state_death.csv', index = False)
