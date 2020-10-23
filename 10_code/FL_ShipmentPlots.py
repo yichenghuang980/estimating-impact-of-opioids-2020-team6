@@ -49,7 +49,7 @@ FL_data.loc[:, "Year"] = FL_data.loc[:, "Year"] - FL_year
         axis_title_x=element_text(text="Years from Policy Change"),
         axis_title_y=element_text(text="Morphine (mg) Per Cap."),
     )
-).save("../30_results/FL_Pre_Post.jpg")
+).save("../30_results/FL_Pre_Post_shipment.jpg")
 
 # Differnece-in-Difference
 (
@@ -61,4 +61,4 @@ FL_data.loc[:, "Year"] = FL_data.loc[:, "Year"] - FL_year
         axis_title_x=element_text(text="Years from Policy Change"),
         axis_title_y=element_text(text="Morphine (mg) Per Cap."),
     )
-).save("../30_results/FL_DIFinDIF.jpg")
+).save("../30_results/FL_DIFinDIF_shipment.jpg")
