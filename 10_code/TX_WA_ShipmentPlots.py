@@ -105,10 +105,10 @@ for i in range(len(compares)):
         + geom_vline(aes(xintercept=0))
         + theme(
             plot_title=element_text(text=f"Pre-Post ({compares[i][0]})"),
-            axis_title_x=element_text(text=f"Num months since {str(reform_year[i])}"),
+            axis_title_x=element_text(text=f"Months from Policy Change"),
             axis_title_y=element_text(text="Morphine (mg) Per Cap."),
         )
-    ).save(f"../20_intermediate_files/{compares[i][0]}_Pre_Post.jpg")
+    ).save(f"../30_results/{compares[i][0]}_Pre_Post.jpg")
 
     # Plot and save difference-in-difference plot
     (
@@ -122,7 +122,7 @@ for i in range(len(compares)):
             plot_title=element_text(
                 text=f"Difference-in-Difference ({compares[i][0]})"
             ),
-            axis_title_x=element_text(text=f"Num months since {str(reform_year[i])}"),
+            axis_title_x=element_text(text=f"Months from Policy Change"),
             axis_title_y=element_text(text="Morphine (mg) Per Cap."),
         )
-    ).save(f"../20_intermediate_files/{compares[i][0]}_DIFinDIF.jpg")
+    ).save(f"../30_results/{compares[i][0]}_DIFinDIF.jpg")
