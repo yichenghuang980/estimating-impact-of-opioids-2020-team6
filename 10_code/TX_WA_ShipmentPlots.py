@@ -4,8 +4,8 @@ import numpy as np
 from plotnine import *
 
 # load merged shipment data
-ship_pop = pd.read_csv("..\..\Mid-Semester Project\SHIPMENT_merge.csv")
-# ship_pop = pd.read_csv("..\20_intermediate_files\SHIPMENT_merge.csv")
+ship_pop = pd.read_csv("../../Mid-Semester Project/SHIPMENT_merge.csv")
+# ship_pop = pd.read_csv("../20_intermediate_files/SHIPMENT_merge.csv")
 
 ## Enter data parameters
 # Baseline state abreviation first!
@@ -17,6 +17,9 @@ compares = [WA_compare, TX_compare]
 yr_before = [2010, 2006]
 reform_year = [2011, 2007]
 yr_after = [2012, 2008]
+
+# Number of months in analysis
+num_months = 24
 
 ## Create monthly dataset
 # Extracting states of interest, grouping by state -- summing variables
@@ -43,11 +46,21 @@ for i in range(len(compares)):
     # Subset the approiate states and years
     data = monthly.loc[
         (monthly.BUYER_STATE.isin(compares[i]))
-        & ((monthly.Year >= yr_before[i]) & (monthly.Year != reform_year[i]))
+        & (
+            (monthly.Year >= yr_before[i])
+            & (monthly.Year != reform_year[i])
+            & (monthly.Year <= yr_after[i])
+        )
     ].copy()
 
     # Chaning the names of the comparison states to a common name
     data.loc[data.BUYER_STATE != compares[i][0], "BUYER_STATE"] = f"{compares[i][1:]}"
+
+    # Check to ensure that the comparison states account for the appropriate number of rows
+    # (# analysis months * # comparison statues)
+    assert len(
+        data.loc[data.BUYER_STATE != compares[i][0], "BUYER_STATE"]
+    ) == num_months * len(compares[i][1:])
 
     # Grouping by new state lables and averaging
     data = (
@@ -56,6 +69,23 @@ for i in range(len(compares)):
         .mean()
         .sort_values(by=["Post", "Month"])
         .reset_index()
+    )
+
+    # Check to ensure we are only looking at 24 months (12mo before reform + 12mo after reform)
+    assert (
+        len(
+            data.loc[
+                data.BUYER_STATE != compares[i][0],
+            ]
+        )
+        == num_months
+    )
+
+    # Check to ensure we have equal data for the state of interest and averages for comparison states
+    assert len(data.loc[data.BUYER_STATE != compares[i][0],]) == len(
+        data.loc[
+            data.BUYER_STATE == compares[i][0],
+        ]
     )
 
     # Making the 'Month' values in the 12 months leading up to the reform a countdown
