@@ -26,7 +26,8 @@ pre_TX = (ggplot(data[data['State'] == 'TX'], aes(x = 'YearDiff_TX', y='Overdose
         annotate('text', x = 0, y = 0.013, label='Policy Change') +
         labs(title='Pre-post Model Graph, Texas') +
         xlab('Years from Policy Change') +
-        ylab('Overdose Death Proportion')
+        ylab('Overdose Death Proportion') +
+        xlim(-5, 7)
 )
 ggsave(plot = pre_TX, filename = 'TX_pre_overdose', path = "C:/Users/renha/Desktop/graph")
 
@@ -37,7 +38,8 @@ pre_WA = (ggplot(data[data['State'] == 'WA'], aes(x = 'YearDiff_WA', y='Overdose
         annotate('text', x = 0, y = 0.013, label='Policy Change') +
         labs(title='Pre-post Model Graph, Washington') +
         xlab('Years from Policy Change') +
-        ylab('Overdose Death Proportion')
+        ylab('Overdose Death Proportion') +
+        xlim(-7, 5)
 )
 ggsave(plot = pre_WA, filename = 'WA_pre_overdose', path = "C:/Users/renha/Desktop/graph")
 
@@ -73,7 +75,8 @@ diff_TX = (ggplot(mergedTX, aes(y='OverdoseProp', color = 'State')) +
         annotate('text', x = 0, y = 0.016, label='Policy Change') +
         labs(title='Diff-in-Diff Model Graph, Texas') +
         xlab('Years from Policy Change') +
-        ylab('Overdose Death Proportion')
+        ylab('Overdose Death Proportion') +
+        xlim(-5, 10)
 )
 ggsave(plot = diff_TX, filename = 'TX_diff_overdose', path = "C:/Users/renha/Desktop/graph")
 
@@ -91,6 +94,7 @@ diff_WA = (ggplot(mergedWA, aes(y='OverdoseProp', color = 'State')) +
         annotate('text', x = 0, y = 0.014, label='Policy Change') +
         labs(title='Diff-in-Diff Model Graph, Washington') +
         xlab('Years from Policy Change') +
-        ylab('Overdose Death Proportion')
+        ylab('Overdose Death Proportion') +
+        xlim(-10, 5)
 )
 ggsave(plot = diff_WA, filename = 'WA_diff_overdose', path = "C:/Users/renha/Desktop/graph")
