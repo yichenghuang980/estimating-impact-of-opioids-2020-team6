@@ -24,16 +24,19 @@ for key in dfs.keys():
     origin = origin.append(dfs[key])
     pass
 
+# check whihc county has missing value
 origin[origin['Deaths'] == 'Missing']['County'].unique()
-index_names = origin[origin['Deaths'] == 'Missing'].index
-origin = origin.drop(index_names)
+# index_names = origin[origin['Deaths'] == 'Missing'].index
+# origin = origin.drop(index_names)
+
+# replace missing value with 10
+origin['Deaths'] = origin['Deaths'].replace('Missing', 10)
 
 origin['Deaths'] = origin['Deaths'].astype('int64')
 origin['Year'] = origin['Year'].astype('int64')
 origin['County Code'] = origin['County Code'].astype('int64')
 
 totalDeath = origin.groupby(['County','Year','County Code'], as_index = False).sum()[['County','County Code','Year','Deaths']].rename({'Deaths':'TotalDeath'}, axis = 'columns')
-totalDeath
 
 names = []
 for name in origin['Drug/Alcohol Induced Cause'].unique():
@@ -44,18 +47,91 @@ for name in origin['Drug/Alcohol Induced Cause'].unique():
 
 interDose = origin[origin['Drug/Alcohol Induced Cause'].isin(names)]
 finalDose = interDose.groupby(['County', 'County Code', 'Year'], as_index = False).sum()[['County','County Code','Year','Deaths']].rename({'Deaths':'TotalOverdose'}, axis = 'columns')
-finalDose
 
-final = pd.merge(finalDose, totalDeath, on = ['County', 'County Code', 'Year'])
-final[['County','State']] = final.County.str.split(", ",expand=True,)
-state = final.groupby(['State', 'Year'], as_index = False).sum().drop('County Code', axis = 1)
-state['OverdoseProp'] = state['TotalOverdose'] / state['TotalDeath']
+death = pd.merge(finalDose, totalDeath, on = ['County', 'County Code', 'Year'], validate='1:1', indicator = True)
+death[['County','State']] = death.County.str.split(", ",expand=True,)
 
-state['PolicyState'] = (state['State'] == 'FL') | ((state['State'] == 'TX')) | (state['State'] == 'WA')
+# ensure that every row has a corresponding row in the other dataframe
+death._merge.value_counts()
+death.drop(['_merge', 'County Code'], axis = 1, inplace = True)
 
-nearFL = ['FL', 'LA', 'MS', 'SC']
-nearTX = ['TX', 'AR', 'NM', 'KS']
-nearWA = ['WA', 'CO', 'OR', 'CA']
+# convert abbreviation to full name
+states = {
+        'AK': 'Alaska',
+        'AL': 'Alabama',
+        'AR': 'Arkansas',
+        'AS': 'American Samoa',
+        'AZ': 'Arizona',
+        'CA': 'California',
+        'CO': 'Colorado',
+        'CT': 'Connecticut',
+        'DC': 'District of Columbia',
+        'DE': 'Delaware',
+        'FL': 'Florida',
+        'GA': 'Georgia',
+        'GU': 'Guam',
+        'HI': 'Hawaii',
+        'IA': 'Iowa',
+        'ID': 'Idaho',
+        'IL': 'Illinois',
+        'IN': 'Indiana',
+        'KS': 'Kansas',
+        'KY': 'Kentucky',
+        'LA': 'Louisiana',
+        'MA': 'Massachusetts',
+        'MD': 'Maryland',
+        'ME': 'Maine',
+        'MI': 'Michigan',
+        'MN': 'Minnesota',
+        'MO': 'Missouri',
+        'MP': 'Northern Mariana Islands',
+        'MS': 'Mississippi',
+        'MT': 'Montana',
+        'NA': 'National',
+        'NC': 'North Carolina',
+        'ND': 'North Dakota',
+        'NE': 'Nebraska',
+        'NH': 'New Hampshire',
+        'NJ': 'New Jersey',
+        'NM': 'New Mexico',
+        'NV': 'Nevada',
+        'NY': 'New York',
+        'OH': 'Ohio',
+        'OK': 'Oklahoma',
+        'OR': 'Oregon',
+        'PA': 'Pennsylvania',
+        'PR': 'Puerto Rico',
+        'RI': 'Rhode Island',
+        'SC': 'South Carolina',
+        'SD': 'South Dakota',
+        'TN': 'Tennessee',
+        'TX': 'Texas',
+        'UT': 'Utah',
+        'VA': 'Virginia',
+        'VI': 'Virgin Islands',
+        'VT': 'Vermont',
+        'WA': 'Washington',
+        'WI': 'Wisconsin',
+        'WV': 'West Virginia',
+        'WY': 'Wyoming'
+}
+death['State'] = death['State'].map(states)
 
-state['Post'] = ((state['State'].isin(nearFL)) & (state['Year'] >= 2010)) | ((state['State'].isin(nearTX)) & (state['Year'] >= 2007)) | ((state['State'].isin(nearWA)) & (state['Year'] >= 2012))
-state.to_csv('state_death.csv', index = False)
+# import population dataset
+pop = pd.read_csv('FinalPopDataset.csv')
+final = pd.merge(death, pop, left_on = ['State', 'County', 'Year'], right_on = ['STATE', 'COUNTY', 'YEAR'], validate='1:1', indicator = True)
+
+# ensure that every row has a corresponding row in the other dataframe
+final._merge.value_counts()
+final.drop(['STATE', 'YEAR', 'COUNTY', '_merge'], axis = 1, inplace = True)
+
+final['OverdoseProp'] = final['TotalOverdose'] / final['POP']
+
+final['PolicyState'] = (final['State'] == 'Florida') | ((final['State'] == 'Texas')) | (final['State'] == 'Washington')
+
+nearFL = ['Florida', 'Louisiana', 'Mississippi', 'South Carolina']
+nearTX = ['Texas', 'Arkansas', 'New Mexico', 'Kansas']
+nearWA = ['Washington', 'Colorado', 'Oregon', 'California']
+
+final['Post'] = ((final['State'].isin(nearFL)) & (final['Year'] >= 2010)) | ((final['State'].isin(nearTX)) & (final['Year'] >= 2007)) | ((final['State'].isin(nearWA)) & (final['Year'] >= 2012))
+final.to_csv('state_county_death.csv', index = False)
