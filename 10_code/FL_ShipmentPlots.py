@@ -4,8 +4,8 @@ import numpy as np
 from plotnine import *
 
 ## Load merged shipment/population data
-ship_pop = pd.read_csv("../../Mid-Semester Project/SHIPMENT_merge.csv")
-# ship_pop = pd.read_csv("../20_intermediate_files/SHIPMENT_merge.csv")
+ship_pop = pd.read_csv("../../Mid-Semester Project/SHIPMENT_merge_v2.csv")
+# ship_pop = pd.read_csv("../20_intermediate_files/SHIPMENT_merge_v2.csv")
 
 ## Create variables for the states to be plotted and cutoff year
 FL_compare = ["FL", "LA", "MS", "SC"]
@@ -15,23 +15,15 @@ FL_year = 2010
 FL_data = ship_pop.loc[(ship_pop.BUYER_STATE.isin(FL_compare))].copy()
 
 # Group each state, combining all the counties -- summing other variables
-FL_data.loc[FL_data.BUYER_STATE != "FL", "BUYER_STATE"] = "Not FL"
-FL_data = (
-    FL_data[["BUYER_STATE", "Year", "MME/CAP", "Post"]]
-    .groupby(["BUYER_STATE", "Year"])
-    .mean()
-    .reset_index()
-)
-
-# Check for equal amount of data for FL and comparison states
-assert len(FL_data[FL_data.BUYER_STATE == "FL"]) == len(
-    FL_data[FL_data.BUYER_STATE != "FL"]
-)
+FL_data.loc[FL_data.BUYER_STATE != "FL", "BUYER_STATE"] = "FL Control"
 
 # Convert "Post" from an integer back to a boolean value
 FL_data["Post"] = FL_data.Post != 0
-FL_data["Year"] = FL_data["Year"].apply(lambda x: int(x))
+FL_data["Year"] = FL_data["YEAR/MONTH"].apply(lambda x: int(x))
 FL_data.loc[:, "Year"] = FL_data.loc[:, "Year"] - FL_year
+
+# Correcting the value for Cameron County, LA
+FL_data.loc[(FL_data.PolicyState == False) & (FL_data.Year == 0), "Post"] = True
 
 ### Plot data
 # Pre-Post
