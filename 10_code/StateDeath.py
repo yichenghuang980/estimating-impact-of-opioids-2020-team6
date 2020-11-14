@@ -36,25 +36,6 @@ origin['Deaths'] = origin['Deaths'].astype('int64')
 origin['Year'] = origin['Year'].astype('int64')
 origin['County Code'] = origin['County Code'].astype('int64')
 
-totalDeath = origin.groupby(['County','Year','County Code'], as_index = False).sum()[['County','County Code','Year','Deaths']].rename({'Deaths':'TotalDeath'}, axis = 'columns')
-
-names = []
-for name in origin['Drug/Alcohol Induced Cause'].unique():
-    if re.match('Drug poisonings.*', name):
-        names.append(name)
-        pass
-    pass
-
-interDose = origin[origin['Drug/Alcohol Induced Cause'].isin(names)]
-finalDose = interDose.groupby(['County', 'County Code', 'Year'], as_index = False).sum()[['County','County Code','Year','Deaths']].rename({'Deaths':'TotalOverdose'}, axis = 'columns')
-
-death = pd.merge(finalDose, totalDeath, on = ['County', 'County Code', 'Year'], validate='1:1', indicator = True)
-death[['County','State']] = death.County.str.split(", ",expand=True,)
-
-# ensure that every row has a corresponding row in the other dataframe
-death._merge.value_counts()
-death.drop(['_merge', 'County Code'], axis = 1, inplace = True)
-
 # convert abbreviation to full name
 states = {
         'AK': 'Alaska',
@@ -115,23 +96,78 @@ states = {
         'WV': 'West Virginia',
         'WY': 'Wyoming'
 }
-death['State'] = death['State'].map(states)
+origin['State'] = origin['State'].map(states)
 
-# import population dataset
 pop = pd.read_csv('FinalPopDataset.csv')
-final = pd.merge(death, pop, left_on = ['State', 'County', 'Year'], right_on = ['STATE', 'COUNTY', 'YEAR'], validate='1:1', indicator = True)
 
+final = pd.merge(pop, origin, how = 'left', left_on = ['STATE', 'COUNTY', 'YEAR'], right_on = ['State', 'County', 'Year'], indicator = True)
+final.value_counts('_merge')
+
+final.drop(['County', 'Year', 'State'], axis = 1, inplace = True)
+states = final.STATE.unique().copy()
+deathTypes = origin['Drug/Alcohol Induced Cause'].unique().copy()
+years = final.YEAR.unique().copy()
+#states = ['Florida', 'Texas', 'Washington', 'Louisiana', 'Mississippi', 'South Carolina', 'Arkansas', 'New Mexico', 'Kansas', 'Colorado', 'Oregon', 'California']
+years = sorted(origin['Year'].unique()).copy()
+final = final[final['STATE'].isin(states) & (final['YEAR'] >= 2003) & (final['YEAR'] <= 2015)].reset_index(drop = True).copy()
+
+state_county = {}
+
+for state in states:
+    counties = final[final['STATE'] == state]['COUNTY'].unique().copy()
+    state_county[state] = counties
+    pass
+
+for state, counties in state_county.items():
+    for county in counties:
+        for year in years:
+            window = final[(final['STATE'] == state) & (final['COUNTY'] == county) & (final['YEAR'] == year)].copy()
+            population = window['POP'].iloc[0]
+            for death in deathTypes:
+                existingDeath = window['Drug/Alcohol Induced Cause'].unique()
+                if death not in existingDeath:
+                    new_row = {'STATE':state, 'COUNTY':county, 'YEAR':year, 'POP':population, 'Drug/Alcohol Induced Cause':death, 'Deaths':0, '_merge':'Missing'}
+                    final = final.append(new_row, ignore_index=True).copy()
+
+sub = final.copy()
+index_names = sub[sub['_merge'] == 'left_only'].index
+sub = sub.drop(index_names)
+sub.value_counts('_merge')
+sub.drop('_merge', axis = 1, inplace = True)
+
+names = []
+for name in sub['Drug/Alcohol Induced Cause'].unique():
+    if re.match('Drug poisonings.*', name):
+        names.append(name)
+        pass
+    pass
+
+interDose = sub[sub['Drug/Alcohol Induced Cause'].isin(names)].copy()
+len(interDose[interDose['STATE'] == 'Texas']['COUNTY'].unique())
+
+finalDose = interDose.groupby(['STATE', 'COUNTY', 'YEAR'], as_index = False).sum()[['STATE','COUNTY','YEAR','Deaths']].rename({'Deaths':'TotalOverdose'}, axis = 'columns').copy()
+
+finalDose.loc[finalDose.TotalOverdose == 0, "TotalOverdose" ] = 10
+finalDose.loc[finalDose.COUNTY == 'Loving County', "TotalOverdose" ] = 1
+finalDose.loc[finalDose.COUNTY == 'King County', "TotalOverdose" ] = 1
+
+# subset population dataset
+subPop = pop[pop['STATE'].isin(states) & (pop['YEAR'] >= 2003) & (pop['YEAR'] <= 2015)].reset_index(drop = True).copy()
+index_names = subPop[subPop['COUNTY'].isin(states)].index
+subPop = subPop.drop(index_names)
+correct = pd.merge(subPop, finalDose, how = 'left', on = ['STATE', 'COUNTY', 'YEAR'], indicator = True)
 # ensure that every row has a corresponding row in the other dataframe
-final._merge.value_counts()
-final.drop(['STATE', 'YEAR', 'COUNTY', '_merge'], axis = 1, inplace = True)
+correct._merge.value_counts()
+correct.drop('_merge', axis = 1, inplace = True)
 
-final['OverdoseProp'] = final['TotalOverdose'] / final['POP']
-
-final['PolicyState'] = (final['State'] == 'Florida') | ((final['State'] == 'Texas')) | (final['State'] == 'Washington')
+correct.loc[correct.POP < 1000, "TotalOverdose" ] = 1
+correct['OverdoseProp'] = correct['TotalOverdose'] / correct['POP']
+correct['PolicyState'] = (correct['STATE'] == 'Florida') | ((correct['STATE'] == 'Texas')) | (correct['STATE'] == 'Washington')
 
 nearFL = ['Florida', 'Louisiana', 'Mississippi', 'South Carolina']
 nearTX = ['Texas', 'Arkansas', 'New Mexico', 'Kansas']
 nearWA = ['Washington', 'Colorado', 'Oregon', 'California']
+correct['Post'] = ((correct['STATE'].isin(nearFL)) & (correct['YEAR'] >= 2010)) | ((correct['STATE'].isin(nearTX)) & (correct['YEAR'] >= 2007)) | ((correct['STATE'].isin(nearWA)) & (correct['YEAR'] >= 2012))
+len(correct[correct['STATE'] == 'Texas']['COUNTY'].unique())
 
-final['Post'] = ((final['State'].isin(nearFL)) & (final['Year'] >= 2010)) | ((final['State'].isin(nearTX)) & (final['Year'] >= 2007)) | ((final['State'].isin(nearWA)) & (final['Year'] >= 2012))
-final.to_csv('state_county_death.csv', index = False)
+correct.to_csv('state_county_death.csv', index = False)
