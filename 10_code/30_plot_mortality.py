@@ -8,6 +8,32 @@ data['YearDiff_FL'] = data['Year'] - 2010
 data['YearDiff_TX'] = data['Year'] - 2007
 data['YearDiff_WA'] = data['Year'] - 2012
 
+# Texas: replace extreme value
+data[data['STATE'] == 'Texas'].sort_values(by = 'OverdoseProp', ascending = False)
+TXmean = data[(data['STATE'] == 'Texas') & (data['POP'] > 4000)]['OverdoseProp'].mean()
+TXmean
+
+TXcounties = data[(data['STATE'] == 'Texas') & (data['POP'] <= 4000)]['COUNTY'].unique()
+data.loc[data['COUNTY'].isin(TXcounties), "OverdoseProp" ] = TXmean
+(ggplot(data[data['STATE'] == 'Texas'], aes(x = 'YearDiff_TX', y='OverdoseProp')) +
+        geom_point()
+)
+nearTXmean = nearTX[nearTX['POP'] > 5000]['OverdoseProp'].mean()
+nearTXmean
+nearTXcounties = nearTX[nearTX['POP'] <= 5000]['COUNTY'].unique()
+nearTX.loc[nearTX['COUNTY'].isin(nearTXcounties), "OverdoseProp" ] = nearTXmean
+(ggplot(nearTX, aes(x = 'YearDiff_TX', y='OverdoseProp')) +
+        geom_point()
+)
+mergedTX = data[data['STATE'] == 'Texas'].append(nearTX, ignore_index = True)
+
+
+# TX - Jan 2007
+# ['AR', 'NM', 'KS']
+nearTX = data[data['STATE'].isin(['Arkansas', 'New Mexico', 'Kansas'])].copy()
+nearTX['STATE'] = "NearbyStates"
+nearTX.sort_values(by = 'OverdoseProp', ascending = False).head(500)
+
 # FL - Feb 2010
 pre_FL = (ggplot(data[data['STATE'] == 'Florida'], aes(x = 'YearDiff_FL', y='OverdoseProp', color = 'Post')) +
         geom_smooth(method = 'lm', level = 0.95) +

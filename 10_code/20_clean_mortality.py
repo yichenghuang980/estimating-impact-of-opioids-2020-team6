@@ -2,7 +2,7 @@ import pandas as pd
 from zipfile import ZipFile
 import re
 
-original_zip = ZipFile('US_VitalStatistics.zip', 'r')
+original_zip = ZipFile('../00_source/US_VitalStatistics.zip', 'r')
 new_zip = ZipFile('new_archve.zip', 'w')
 for item in original_zip.infolist():
     buffer = original_zip.read(item.filename)
@@ -17,6 +17,9 @@ dfs = {}
 
 for text_file in new_zip.infolist():
     dfs[re.search('2\d\d\d', text_file.filename).group(0)] = pd.read_csv(new_zip.open(text_file.filename), sep = "\t", usecols = [1, 2, 3, 5, 7])[:-15]
+
+new_zip.close()
+!rm new_archve.zip
 
 dfs.keys()
 origin = pd.DataFrame({})
@@ -98,7 +101,7 @@ states = {
 }
 origin['State'] = origin['State'].map(states)
 
-pop = pd.read_csv('FinalPopDataset.csv')
+pop = pd.read_csv('../20_intermediate_files/FinalPopDataset.csv')
 
 final = pd.merge(pop, origin, how = 'left', left_on = ['STATE', 'COUNTY', 'YEAR'], right_on = ['State', 'County', 'Year'], indicator = True)
 final.value_counts('_merge')
@@ -170,4 +173,4 @@ nearWA = ['Washington', 'Colorado', 'Oregon', 'California']
 correct['Post'] = ((correct['STATE'].isin(nearFL)) & (correct['YEAR'] >= 2010)) | ((correct['STATE'].isin(nearTX)) & (correct['YEAR'] >= 2007)) | ((correct['STATE'].isin(nearWA)) & (correct['YEAR'] >= 2012))
 len(correct[correct['STATE'] == 'Texas']['COUNTY'].unique())
 
-correct.to_csv('state_county_death.csv', index = False)
+correct.to_csv('../20_intermediate_files/state_county_death.csv', index = False)
