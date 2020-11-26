@@ -2,6 +2,7 @@ import pandas as pd
 from zipfile import ZipFile
 import re
 
+# read mortality data
 original_zip = ZipFile('../00_source/US_VitalStatistics.zip', 'r')
 new_zip = ZipFile('new_archve.zip', 'w')
 for item in original_zip.infolist():
@@ -101,76 +102,73 @@ states = {
 }
 origin['State'] = origin['State'].map(states)
 
-pop = pd.read_csv('../20_intermediate_files/FinalPopDataset.csv')
-
-final = pd.merge(pop, origin, how = 'left', left_on = ['STATE', 'COUNTY', 'YEAR'], right_on = ['State', 'County', 'Year'], indicator = True)
-final.value_counts('_merge')
-
-final.drop(['County', 'Year', 'State'], axis = 1, inplace = True)
-states = final.STATE.unique().copy()
-deathTypes = origin['Drug/Alcohol Induced Cause'].unique().copy()
-years = final.YEAR.unique().copy()
-#states = ['Florida', 'Texas', 'Washington', 'Louisiana', 'Mississippi', 'South Carolina', 'Arkansas', 'New Mexico', 'Kansas', 'Colorado', 'Oregon', 'California']
-years = sorted(origin['Year'].unique()).copy()
-final = final[final['STATE'].isin(states) & (final['YEAR'] >= 2003) & (final['YEAR'] <= 2015)].reset_index(drop = True).copy()
-
-state_county = {}
-
-for state in states:
-    counties = final[final['STATE'] == state]['COUNTY'].unique().copy()
-    state_county[state] = counties
-    pass
-
-for state, counties in state_county.items():
-    for county in counties:
-        for year in years:
-            window = final[(final['STATE'] == state) & (final['COUNTY'] == county) & (final['YEAR'] == year)].copy()
-            population = window['POP'].iloc[0]
-            for death in deathTypes:
-                existingDeath = window['Drug/Alcohol Induced Cause'].unique()
-                if death not in existingDeath:
-                    new_row = {'STATE':state, 'COUNTY':county, 'YEAR':year, 'POP':population, 'Drug/Alcohol Induced Cause':death, 'Deaths':0, '_merge':'Missing'}
-                    final = final.append(new_row, ignore_index=True).copy()
-
-sub = final.copy()
-index_names = sub[sub['_merge'] == 'left_only'].index
-sub = sub.drop(index_names)
-sub.value_counts('_merge')
-sub.drop('_merge', axis = 1, inplace = True)
-
+# group by and sum overdose death
 names = []
-for name in sub['Drug/Alcohol Induced Cause'].unique():
+for name in origin['Drug/Alcohol Induced Cause'].unique():
     if re.match('Drug poisonings.*', name):
         names.append(name)
         pass
     pass
 
-interDose = sub[sub['Drug/Alcohol Induced Cause'].isin(names)].copy()
-len(interDose[interDose['STATE'] == 'Texas']['COUNTY'].unique())
-
-finalDose = interDose.groupby(['STATE', 'COUNTY', 'YEAR'], as_index = False).sum()[['STATE','COUNTY','YEAR','Deaths']].rename({'Deaths':'TotalOverdose'}, axis = 'columns').copy()
-
-finalDose.loc[finalDose.TotalOverdose == 0, "TotalOverdose" ] = 10
-finalDose.loc[finalDose.COUNTY == 'Loving County', "TotalOverdose" ] = 1
-finalDose.loc[finalDose.COUNTY == 'King County', "TotalOverdose" ] = 1
+interDose = origin[origin['Drug/Alcohol Induced Cause'].isin(names)].copy()
+finalDose = interDose.groupby(['State', 'County', 'Year'], as_index = False).sum()[['State', 'County', 'Year', 'Deaths']].rename({'Deaths':'TotalOverdose'}, axis = 'columns').copy()
 
 # subset population dataset
+pop = pd.read_csv('../20_intermediate_files/FinalPopDataset.csv')
+states = finalDose.State.unique().copy()
 subPop = pop[pop['STATE'].isin(states) & (pop['YEAR'] >= 2003) & (pop['YEAR'] <= 2015)].reset_index(drop = True).copy()
 index_names = subPop[subPop['COUNTY'].isin(states)].index
 subPop = subPop.drop(index_names)
-correct = pd.merge(subPop, finalDose, how = 'left', on = ['STATE', 'COUNTY', 'YEAR'], indicator = True)
-# ensure that every row has a corresponding row in the other dataframe
-correct._merge.value_counts()
-correct.drop('_merge', axis = 1, inplace = True)
 
-correct.loc[correct.POP < 1000, "TotalOverdose" ] = 1
-correct['OverdoseProp'] = correct['TotalOverdose'] / correct['POP']
-correct['PolicyState'] = (correct['STATE'] == 'Florida') | ((correct['STATE'] == 'Texas')) | (correct['STATE'] == 'Washington')
+final = pd.merge(subPop, finalDose, how = 'left', left_on = ['STATE', 'COUNTY', 'YEAR'], right_on = ['State', 'County', 'Year'], indicator = True)
+final.value_counts('_merge')
 
+final.drop(['County', 'Year', 'State'], axis = 1, inplace = True)
+final['TotalOverdose'] = final['TotalOverdose'].fillna(0)
+final.loc[final.TotalOverdose == 0, "TotalOverdose" ] = 10
+final.loc[final.COUNTY == 'Loving County', "TotalOverdose" ] = 1
+final.loc[final.COUNTY == 'King County', "TotalOverdose" ] = 1
+final.loc[final.POP < 1000, "TotalOverdose" ] = 1
+state_county = {}
+
+# calculate overdose death
+final.drop('_merge', axis = 1, inplace = True)
+final['OverdoseProp'] = final['TotalOverdose'] / final['POP']
+final['PolicyState'] = (final['STATE'] == 'Florida') | ((final['STATE'] == 'Texas')) | (final['STATE'] == 'Washington')
 nearFL = ['Florida', 'Louisiana', 'Mississippi', 'South Carolina']
 nearTX = ['Texas', 'Arkansas', 'New Mexico', 'Kansas']
 nearWA = ['Washington', 'Colorado', 'Oregon', 'California']
-correct['Post'] = ((correct['STATE'].isin(nearFL)) & (correct['YEAR'] >= 2010)) | ((correct['STATE'].isin(nearTX)) & (correct['YEAR'] >= 2007)) | ((correct['STATE'].isin(nearWA)) & (correct['YEAR'] >= 2012))
-len(correct[correct['STATE'] == 'Texas']['COUNTY'].unique())
+final['Post'] = ((final['STATE'].isin(nearFL)) & (final['YEAR'] >= 2010)) | ((final['STATE'].isin(nearTX)) & (final['YEAR'] >= 2007)) | ((final['STATE'].isin(nearWA)) & (final['YEAR'] >= 2012))
+len(final[final['STATE'] == 'Texas']['COUNTY'].unique())
+final.to_csv('../20_intermediate_files/state_county_death.csv', index = False)
 
-correct.to_csv('../20_intermediate_files/state_county_death.csv', index = False)
+'''This is the loop before simplification'''
+#deathTypes = origin['Drug/Alcohol Induced Cause'].unique().copy()
+#years = final.YEAR.unique().copy()
+
+#years = sorted(origin['Year'].unique()).copy()
+#final = final[final['STATE'].isin(states) & (final['YEAR'] >= 2003) & (final['YEAR'] <= 2015)].reset_index(drop = True).copy()
+
+#state_county = {}
+
+#for state in states:
+#    counties = final[final['STATE'] == state]['COUNTY'].unique().copy()
+#    state_county[state] = counties
+#    pass
+
+#for state, counties in state_county.items():
+#    for county in counties: 
+#        for year in years:
+#            window = final[(final['STATE'] == state) & (final['COUNTY'] == county) & (final['YEAR'] == year)].copy()
+#            population = window['POP'].iloc[0]
+#            for death in deathTypes:
+#                existingDeath = window['Drug/Alcohol Induced Cause'].unique()
+#                if death not in existingDeath:
+#                    new_row = {'STATE':state, 'COUNTY':county, 'YEAR':year, 'POP':population, 'Drug/Alcohol Induced Cause':death, 'Deaths':0, '_merge':'Missing'}
+#                    final = final.append(new_row, ignore_index=True).copy()
+
+#sub = final.copy()
+#index_names = sub[sub['_merge'] == 'left_only'].index
+#sub = sub.drop(index_names)
+#sub.value_counts('_merge')
+#sub.drop('_merge', axis = 1, inplace = True)
